@@ -3,4 +3,4 @@ export type Solution = {
   part2?: Solver
 }
 
-export type Solver = (input: string[]) => unknown;
+export type Solver = (input: readonly string[]) => unknown;

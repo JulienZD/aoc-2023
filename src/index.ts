@@ -1,14 +1,14 @@
 import 'dotenv/config.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { getDayInput } from './util/get-solution.js';
+import { getDayInput } from './util/get-input.js';
 
 const args = process.argv.slice(2);
 const dayNumber = String(args[0] || new Date().getDate());
 
 const dayDirectory = path.join(fileURLToPath(import.meta.url), '../', 'days', dayNumber);
 
-const input = await getDayInput(+dayNumber, dayDirectory);
+const input = (await getDayInput(+dayNumber, dayDirectory)).split('\n');
 
 const { part1, part2 } = await import(path.join(dayDirectory, 'index.ts'));
 
