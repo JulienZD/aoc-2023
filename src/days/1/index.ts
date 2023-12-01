@@ -82,3 +82,33 @@ function sumCalibrationValues(digits: ReadonlyArray<[number, number]>): number {
     })
     .reduce((a, b) => a + b, 0);
 }
+
+
+// Alternative solution with Regex, I couldn't figure out how to find multiple matches in a string.
+// For example, "eightwo" should return both "eight" and "two", but it only returned "eight".
+
+// Thanks to https://old.reddit.com/r/adventofcode/comments/1884fpl/kbisu7n/ for the positive lookahead tip
+// (?=(\d|one|two|three|four|five|six|seven|eight|nine))
+const numRegex = new RegExp(`(?=(\\d|${numbers.join('|')}))`, 'g');
+
+function alternativeGetCalibrationValueFromLine(line: string): [number, number] {
+  const digits = [...(line.matchAll(numRegex) ?? [])]
+    .map((match) => match.at(1))
+    .filter(Boolean)
+    .map((value) => {
+      const asNum = +value;
+      if (Number.isInteger(asNum)) {
+        return asNum;
+      }
+
+      const indexOfNumber = numbers.indexOf(value);
+
+      if (indexOfNumber !== -1) {
+        return indexOfNumber + 1;
+      }
+
+      return 0;
+    });
+
+  return [digits.at(0)!, digits.at(-1)!];
+}
