@@ -1,4 +1,4 @@
- import { Solver } from '../../solution.js';
+import { Solver } from '../../solution.js';
 
 export const part1: Solver = (input) => {
   const results: number[] = [];
@@ -21,10 +21,28 @@ export const part1: Solver = (input) => {
 };
 
 export const part2: Solver = (input) => {
-  return 'todo';
+  const results: number[] = [];
+
+  const lineNumbersWithGears = input
+    .map((line, index) => (line.includes(GEAR) ? index : -1))
+    .filter((index) => index !== -1);
+
+  for (const lineNumber of lineNumbersWithGears) {
+    const currentLine = input[lineNumber]!;
+    const lineAbove = input[lineNumber - 1];
+    const lineBelow = input[lineNumber + 1];
+
+    const gearRatios = getGearRatios(currentLine, lineBelow, lineAbove);
+
+    results.push(gearRatios);
+  }
+
+  return results.reduce((a, b) => a + b, 0);
 };
 
-const SYMBOLS = ['*', '$', '#', '%', '@', '&', '-', '+', '=', '/'];
+const GEAR = '*';
+
+const SYMBOLS = [GEAR, '$', '#', '%', '@', '&', '-', '+', '=', '/'];
 
 function getPartNumbers(currentLine: string, lineBelow = '', lineAbove = ''): number[] {
   const numberIndexes = currentLine
@@ -98,4 +116,62 @@ function findForwards(start: number, line: string) {
   }
 
   return start;
+}
+
+// Part 2 helpers
+
+function getGearRatios(currentLine: string, lineBelow = '', lineAbove = ''): number {
+  const partNumberPositionMap = {
+    above: getPartNumberPositions(lineAbove),
+    current: getPartNumberPositions(currentLine),
+    below: getPartNumberPositions(lineBelow),
+  };
+
+  const gearIndexes = currentLine
+    .split('')
+    .map((char, index) => (char === GEAR ? index : -1))
+    .filter((index) => index !== -1);
+
+  const adjacentNumbersPerGear = gearIndexes.map((gearIndex) => {
+    return Object.values(partNumberPositionMap)
+      .flat()
+      .filter(({ position }) => {
+        const [start, end] = position;
+
+        return gearIndex >= start - 1 && gearIndex <= end + 1;
+      })
+      .map(({ number }) => number);
+  });
+
+  return adjacentNumbersPerGear
+    .map((partNumbers) => {
+      if (partNumbers.length === 2) {
+        return partNumbers[0]! * partNumbers[1]!;
+      }
+
+      return 0;
+    })
+    .reduce((a, b) => a + b, 0);
+}
+
+function getPartNumberPositions(line: string) {
+  return line
+    .split('')
+    .map((char, index) => (isNumber(char) ? index : -1))
+    .filter((index) => index !== -1)
+    .map((numIndex) => findStartAndEndPosOfNumber(numIndex, line))
+    .filter((results) => results.length)
+    .filter(([start, end], index, self) => {
+      const otherIndex = self.findIndex(([otherStart, otherEnd]) => {
+        return otherStart === start && otherEnd === end;
+      });
+
+      return otherIndex === index;
+    })
+    .map(([start, end]) => {
+      return {
+        position: [start, end] as const,
+        number: Number(line.slice(start, end + 1)),
+      };
+    });
 }
