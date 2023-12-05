@@ -1,60 +1,59 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { Worker } from 'worker_threads';
 import { Solver } from '../../solution.js';
+import { ConversionMap, getLocationForSeed } from './shared.js';
 
 export const part1: Solver = (input) => {
-  const result = getSeedLocations(input);
+  const seeds = input[0]!.match(/\d+/g)!.map(Number);
+
+  const conversionMaps = buildListOfMaps(input);
+
+  const result = seeds.map((seed) => getLocationForSeed(seed, conversionMaps));
 
   return Math.min(...result);
 };
 
-export const part2: Solver = (input) => {
-  return 'todo';
-};
+export const part2: Solver = async (input) => {
+  const seeds = input[0]!.match(/(\d+)\s(\d+)/g)!.map((match) => {
+    const [min, range] = match.split(' ').map(Number) as [number, number];
 
-function getSeedLocations(input: readonly string[]) {
-  const { seeds, conversionMaps } = buildListOfMaps(input);
-
-  const locations = seeds.map((seed) => {
-    let current = seed;
-    for (const [_name, maps] of conversionMaps) {
-      current = getNextNumber(current, maps);
-    }
-
-    return current;
+    return { min, max: min + range - 1 };
   });
 
-  return locations;
-}
+  const conversionMaps = buildListOfMaps(input);
 
-type ConversionMap = {
-  destRangeStart: number;
-  srcRangeStart: number;
-  rangeLength: number;
+  const workerPath = path.join(fileURLToPath(import.meta.url), '../', 'worker.ts');
+
+  const promises = seeds.map((seed) => {
+    const worker = new Worker(workerPath, {
+      workerData: {
+        seed,
+        conversionMaps,
+      },
+    });
+
+    return new Promise<number>((resolve, reject) => {
+      worker.on('message', resolve);
+
+      worker.on('error', reject);
+    });
+  });
+
+  const lowestSeedResults = await Promise.allSettled(promises);
+
+  const lowestSeedsPerRange = lowestSeedResults
+    .filter((result): result is PromiseFulfilledResult<number> => result.status === 'fulfilled')
+    .map((result) => result.value)
+    .sort((a, b) => a - b);
+
+  console.log(lowestSeedsPerRange);
+
+  return lowestSeedsPerRange.at(0);
 };
 
-function getNextNumber(num: number, mapList: readonly ConversionMap[]): number {
-  for (const map of mapList) {
-    const isInRange = num >= map.srcRangeStart && num <= map.srcRangeStart + (map.rangeLength - 1);
-    if (!isInRange) {
-      continue;
-    }
-
-    const offset = num - map.srcRangeStart;
-
-    const nextDestination = map.destRangeStart + offset;
-
-    return nextDestination;
-  }
-
-  return num;
-}
-
-function buildListOfMaps(input: readonly string[]): {
-  seeds: number[];
-  conversionMaps: Map<string, readonly ConversionMap[]>;
-} {
-  const seeds = input[0]!.match(/\d+/g)!.map(Number);
-
-  const conversionMaps = new Map<string, ConversionMap[]>(
+function buildListOfMaps(input: readonly string[]): Map<string, readonly ConversionMap[]> {
+  return new Map<string, ConversionMap[]>(
     input
       .map((line, index) => (!line.length ? index : -1))
       .filter((index) => index !== -1)
@@ -77,6 +76,4 @@ function buildListOfMaps(input: readonly string[]): {
         ] as const;
       })
   );
-
-  return { seeds, conversionMaps };
 }
