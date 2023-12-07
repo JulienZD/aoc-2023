@@ -3,40 +3,26 @@ import { Solver } from '../../solution.js';
 export const part1: Solver = (input) => {
   const hands = input.map((line) => line.split(' '));
 
-  return hands
-    .sort(([handOne], [handTwo]) => {
-      const a = handOne?.split('').sort().join('');
-      const b = handTwo?.split('').sort().join('');
-
-      const scoreA = scoreHand(a);
-      const scoreB = scoreHand(b);
-
-      if (scoreA === scoreB) {
-        return determineWinner(handOne, handTwo, CARDS);
-      }
-
-      return scoreA > scoreB ? Sort.ASC : Sort.DESC;
-    })
-    .map(([_, bid], index) => {
-      const rank = index + 1;
-
-      return Number(bid) * rank;
-    })
-    .reduce((a, b) => a + b);
+  return calculateTotalWinnings(hands, false);
 };
 
 export const part2: Solver = (input) => {
   const hands = input.map((line) => line.split(' '));
 
-  const cards = { ...CARDS, [JOKER]: 1 };
+  return calculateTotalWinnings(hands, true);
+};
+
+function calculateTotalWinnings(hands: string[][], useJokerRule: boolean): number {
+  const scoreHandFn = useJokerRule ? scoreHandPartTwo : scoreHand;
+  const cards = useJokerRule ? { ...CARDS, [JOKER]: 1 } : CARDS;
 
   return hands
     .sort(([handOne], [handTwo]) => {
       const a = handOne?.split('').sort().join('');
       const b = handTwo?.split('').sort().join('');
 
-      const scoreA = scoreHandPartTwo(a);
-      const scoreB = scoreHandPartTwo(b);
+      const scoreA = scoreHandFn(a);
+      const scoreB = scoreHandFn(b);
 
       if (scoreA === scoreB) {
         return determineWinner(handOne, handTwo, cards);
@@ -50,7 +36,7 @@ export const part2: Solver = (input) => {
       return Number(bid) * rank;
     })
     .reduce((a, b) => a + b);
-};
+}
 
 enum Sort {
   ASC = 1,
