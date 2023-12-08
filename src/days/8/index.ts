@@ -6,7 +6,34 @@ export const part1: Solver = (input) => {
 
   const tree = buildTree(nodes);
 
-  return walk(instructions?.split('') as Direction[], tree);
+  const START = 'AAA';
+  const END = 'ZZZ';
+
+  const isEnd = (node?: Node) => node?.name === END;
+
+  return walk(instructions?.split('') as Direction[], tree[START]!, tree, isEnd);
+};
+
+export const part2: Solver = async (input) => {
+  const [instructions] = input;
+  const nodes = input.slice(2);
+
+  const tree = buildTree(nodes);
+
+  const startingNodes = nodes
+    .map((node) => {
+      const [name] = node.split(' =');
+      return name?.endsWith('A') ? name : undefined;
+    })
+    .filter(Boolean);
+
+  const isEnd = (node?: Node) => !!node?.name?.endsWith('Z');
+
+  const directions = instructions?.split('') as Direction[];
+
+  const steps = startingNodes.map((name) => walk(directions, tree[name]!, tree, isEnd));
+
+  return leastCommonMultiple(steps);
 };
 
 type Node = {
@@ -46,11 +73,8 @@ const DIRECTIONS = {
 
 type Direction = keyof typeof DIRECTIONS;
 
-const START = 'AAA';
-const END = 'ZZZ';
-
-function walk(instructions: Direction[], tree: Tree): number {
-  let node: Node | undefined = tree[START];
+function walk(instructions: Direction[], root: Node, tree: Tree, isEnd: (node?: Node) => boolean): number {
+  let node: Node | undefined = root;
   let index = 0;
 
   let steps = 1;
@@ -66,7 +90,7 @@ function walk(instructions: Direction[], tree: Tree): number {
     const nextName = node[DIRECTIONS[nextDirection!]]!;
     node = tree[nextName];
 
-    if (node?.name === END) {
+    if (isEnd(node)) {
       return steps;
     }
 
@@ -77,6 +101,52 @@ function walk(instructions: Direction[], tree: Tree): number {
   return steps;
 }
 
-export const part2: Solver = (input) => {
-  // Todo
-};
+// This will solve... after about ~760 hours for my input :')
+function simultaneousWalk(
+  instructions: Direction[],
+  roots: Node[],
+  tree: Tree,
+  isEnd: (node?: Node) => boolean
+): number {
+  let nodes: (Node | undefined)[] = roots;
+  let index = 0;
+
+  let steps = 1;
+
+  while (nodes.length) {
+    let nextDirection = instructions[index];
+
+    if (!nextDirection) {
+      index = 0;
+      nextDirection = instructions.at(index);
+    }
+
+    const nextNames = nodes.map((node) => node![DIRECTIONS[nextDirection!]]!);
+    nodes = nextNames.map((name) => tree[name]);
+
+    if (nodes.every(isEnd)) {
+      return steps;
+    }
+
+    index++;
+    steps++;
+  }
+
+  return steps;
+}
+
+// Source: https://www.geeksforgeeks.org/javascript-program-to-find-lcm/
+function leastCommonMultiple(arr: number[]) {
+  function gcd(a: number, b: number) {
+    if (b === 0) return a;
+    return gcd(b, a % b);
+  }
+
+  let res = arr[0]!;
+
+  for (let i = 1; i < arr.length; i++) {
+    res = (res * arr[i]!) / gcd(res, arr[i]!);
+  }
+
+  return res;
+}
