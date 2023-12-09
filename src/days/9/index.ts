@@ -11,7 +11,13 @@ export const part1: Solver = (input) => {
 };
 
 export const part2: Solver = (input) => {
-  return 'todo';
+  return input
+    .map((line) => {
+      const numbers = line.split(' ').map(Number);
+
+      return determinePreviousNumber(numbers);
+    })
+    .reduce((a, b) => a + b);
 };
 
 function determineNextNumber(line: readonly number[]): number {
@@ -26,6 +32,20 @@ function determineNextNumber(line: readonly number[]): number {
   }
 
   return lastNum + diffs.at(-1)!;
+}
+
+function determinePreviousNumber(line: readonly number[]): number {
+  const diffs = calculateSteps(line);
+
+  const allZeroes = diffs.every((num) => num === 0);
+
+  const firstNum = line.at(0)!;
+
+  if (!allZeroes) {
+    return firstNum - determinePreviousNumber(diffs);
+  }
+
+  return firstNum - diffs.at(0)!;
 }
 
 function calculateSteps(numbers: readonly number[]): number[] {
