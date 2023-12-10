@@ -23,8 +23,8 @@ class Step {
 export { type Step };
 
 const _Step = {
-  UP: new Step('UP', [1, 0]),
-  DOWN: new Step('DOWN', [-1, 0]),
+  UP: new Step('UP', [-1, 0]),
+  DOWN: new Step('DOWN', [1, 0]),
   LEFT: new Step('LEFT', [0, -1]),
   RIGHT: new Step('RIGHT', [0, 1]),
 } as const;

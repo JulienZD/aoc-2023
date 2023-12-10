@@ -2,7 +2,9 @@ import { Solver } from '../../solution.js';
 import { type Step, STEPS } from './step.js';
 
 export const part1: Solver = (input) => {
-  return idk(input.map((row) => row.split('') as Tile[]));
+  const traversedPositions = idk(input.map((row) => row.split('') as Tile[]));
+
+  return traversedPositions.length / 2;
 };
 
 export const part2: Solver = (input) => {
@@ -16,49 +18,35 @@ function idk(grid: Grid) {
 
   console.log({ startingPosition, nextPipe, step: step.name });
 
-  return traverse(grid, nextPipe, step);
+  return traverse(grid, nextPipe);
 }
 
-function traverse(
-  grid: Grid,
-  currentPos: Position,
-  lastStep: Step,
-  traversedPositions: {
-    steps: number;
-    pos: Position;
-  }[] = []
-) {
-  const tile = tileAt(grid, currentPos);
-  console.log(`at ${tile}, prevStep: ${lastStep.name}`);
-  if (tile === 'S') {
+function traverse(grid: Grid, currentPos: Position, steps = 0, traversedPositions: Position[] = []) {
+  const seen = wasHereBefore(currentPos, traversedPositions);
+
+  const currentTile = tileAt(grid, currentPos);
+  if (seen) {
     return traversedPositions;
   }
 
-  const nextSteps = Object.entries(STEPS)
-    .map(([stepName, step]) => {
-      if (step.row === lastStep.row && step.col === lastStep.col) {
-        return;
-      }
+  traversedPositions.push(currentPos);
 
-      return [stepName as keyof typeof STEPS, takeStep(currentPos, step)] as const;
-    })
-    .filter(Boolean);
-
-  for (const [stepName, nextPos] of nextSteps) {
-    const tile = tileAt(grid, nextPos);
-    const isValidStep =
-      tile !== '.' &&
-      !wasHereBefore(
-        nextPos,
-        traversedPositions.map(({ pos }) => pos)
-      );
-    if (!isValidStep) {
-      continue;
-    }
-
-    traversedPositions.push({ pos: nextPos, steps: stepName.length + 1 });
-    return traverse(grid, nextPos, STEPS[stepName], traversedPositions);
+  if (currentTile === 'S') {
+    return traversedPositions;
   }
+
+  if (currentTile === '.') {
+    return traversedPositions;
+  }
+
+  const nextStep = map[currentTile].find((step) => {
+    const nextPos = takeStep(currentPos, step);
+    const nextTile = tileAt(grid, takeStep(currentPos, step));
+
+    return nextTile !== '.' && !wasHereBefore(nextPos, traversedPositions);
+  })!;
+
+  return traverse(grid, takeStep(currentPos, nextStep), steps + 1, traversedPositions);
 }
 
 function wasHereBefore(position: Position, allPositions: Position[]): boolean {
@@ -71,39 +59,18 @@ function wasHereBefore(position: Position, allPositions: Position[]): boolean {
 }
 
 function tileAt(grid: Grid, [row, col]: Position): Tile {
-  return grid[row]![col]!;
+  return grid[row]?.[col]!;
 }
 
 function takeStep([row, col]: Position, step: Step): Position {
   return [row + step.row, col + step.col];
 }
 
-// function traverse2(grid: Grid, [row, col]: Position) {
-//   const tile = grid[row]![col]!;
-//
-//   if (tile === '.') {
-//     const nextTraversable = grid[row]![col + 1] || grid[row + 1]![col];
-//
-//     if (!nextTraversable) {
-//       console.log(`wtf cant continue at [${row}, ${col}] - ${tile}`);
-//       return -1;
-//     }
-//     return traverse(grid, nextTraversable);
-//   }
-//
-//   if (tile === 'S') {
-//   }
-//
-//   if (tile === 'L') {
-//   }
-// }
-
 type Position = readonly [number, number];
 
 function findStartingPosition(grid: Grid): Position {
   const [startingPosition] = grid
     .map((row, rowIndex) => {
-      console.log(row);
       const colIndex = row.findIndex((sq) => sq === 'S');
 
       if (colIndex !== -1) {
@@ -118,9 +85,7 @@ function findStartingPosition(grid: Grid): Position {
 function findFirstPipeFromStartingPosition(grid: Grid, startPos: Position): [Position, Step] {
   const [row, col] = startPos;
   const tileToTheRight = tileAt(grid, [row, col + 1]);
-  const tileAbove = tileAt(grid, [row + 1, col]);
-  // const tileBelow = tileAt(grid, [row, col - 1]);
-  // const tileToTheLeft = tileAt(grid, [row, col - 1]);
+  const tileAbove = tileAt(grid, [row - 1, col]);
 
   if (tileAbove === '|' || tileAbove === '7' || tileAbove === 'F') {
     return [takeStep(startPos, STEPS.UP), STEPS.UP];
@@ -137,29 +102,23 @@ type Tile = keyof typeof map;
 
 type Grid = Tile[][];
 
-// type TraversingGrid = {
-//   tile: Tile;
-//   position: Position;
-//   value: number;
-// }[];
-
 const map = {
-  '|': 'NS',
-  '-': 'EW',
-  L: 'NE',
-  J: 'NW',
-  '7': 'SW',
-  F: 'SE',
+  '|': [STEPS.UP, STEPS.DOWN],
+  '-': [STEPS.RIGHT, STEPS.LEFT],
+  L: [STEPS.UP, STEPS.RIGHT],
+  J: [STEPS.UP, STEPS.LEFT],
+  '7': [STEPS.DOWN, STEPS.LEFT],
+  F: [STEPS.DOWN, STEPS.RIGHT],
   '.': undefined,
   S: 'START',
 } as const;
 
 const example = [
   '.....', //
-  '.S-7.',
-  '.|.|.',
-  '.L-J.',
-  '.....',
+  '.S-7.', //
+  '.|.|.', //
+  '.L-J.', //
+  '.....', //
 ];
 
 const example2 = [
