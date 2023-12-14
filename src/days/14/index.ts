@@ -11,11 +11,13 @@ type Tile = (typeof Tile)[keyof typeof Tile];
 export const part1: Solver = (input) => {
   const tiltedGrid = tiltGrid(input.map((row) => row.split('')) as Grid);
 
-  return tiltedGrid.reduce((total, row, rowIndex) => {
-    const load = tiltedGrid.length - rowIndex;
+  return calculateLoad(tiltedGrid);
+};
 
-    return total + row.reduce((rowTotal, tile) => rowTotal + (tile === Tile.ROUNDED_ROCK ? load : 0), 0);
-  }, 0);
+export const part2: Solver = (input) => {
+  const tiltedGrid = tiltGrid2(input.map((row) => row.split('')) as Grid, 1_000_000_000);
+
+  return calculateLoad(tiltedGrid);
 };
 
 function tiltGrid(_grid: Grid): Grid {
@@ -41,22 +43,89 @@ function tiltGrid(_grid: Grid): Grid {
   return grid;
 }
 
-function logGrid(grid: Grid) {
-  console.log('---  ---');
-  console.log(grid.map((row) => row.join('')).join('\n'));
-  console.log('\n');
+function calculateLoad(grid: Grid): number {
+  return grid.reduce((total, row, rowIndex) => {
+    const load = grid.length - rowIndex;
+
+    return total + row.reduce((rowTotal, tile) => rowTotal + (tile === Tile.ROUNDED_ROCK ? load : 0), 0);
+  }, 0);
+}
+
+function tiltGrid2(_grid: Grid, maxCycles = 1) {
+  let grid = _grid;
+  const cache = new Set<string>();
+
+  let iterations = 0;
+  while (true) {
+    iterations++;
+    grid = cycle(grid);
+    const map = JSON.stringify(grid);
+
+    if (cache.has(map)) {
+      break;
+    }
+
+    cache.add(map);
+  }
+
+  // Thanks https://old.reddit.com/r/adventofcode/comments/18i0xtn/2023_day_14_solutions/kdaivew/
+  // I couldn't figure out how to properly get this, my brain hurts after work + this :')
+  const states = Array.from(cache);
+
+  const offset = states.indexOf(JSON.stringify(grid)!) + 1;
+
+  const index = ((maxCycles - offset) % (iterations - offset)) + offset - 1;
+
+  return JSON.parse(states[index]!);
+}
+
+function cycle(grid: Grid, index = 0): Grid {
+  if (index) {
+    grid = rotateGrid(grid);
+  }
+
+  if (index === 4) {
+    return grid;
+  }
+
+  return cycle(slide(grid), index + 1);
+}
+
+function slide(grid: Grid): Grid {
+  let hasMoved = true;
+  while (hasMoved) {
+    let didMove = false;
+
+    const withMovables = markMovableTiles(grid);
+
+    const { tiltedGrid, movements } = applyMovements(withMovables);
+
+    grid = tiltedGrid;
+
+    if (!didMove) {
+      didMove = movements > 0;
+    }
+
+    hasMoved = didMove;
+  }
+
+  return grid;
+}
+
+function rotateGrid(grid: Grid): Grid {
+  return grid[0]!.map((val, index) => grid.map((row) => row[index]).reverse());
 }
 
 type GridWithMovables = ReadonlyArray<ReadonlyArray<{ tile: Tile; movable: boolean }>>;
 
 function markMovableTiles(grid: Grid): GridWithMovables {
-  const tiltedGrid = grid.map((row) => row.slice());
+  const gridCopy = grid.map((row) => row.slice());
 
   const movables: Array<[number, number]> = [];
 
-  for (let rowIndex = 0; rowIndex < tiltedGrid.length - 1; rowIndex++) {
-    const row = tiltedGrid[rowIndex]!;
-    const nextRow = tiltedGrid[rowIndex + 1]!;
+  for (let rowIndex = 0; rowIndex < gridCopy.length - 1; rowIndex++) {
+    const row = gridCopy[rowIndex]!;
+    const nextRow = gridCopy[rowIndex + 1]!;
 
     for (let tileIndex = 0; tileIndex < row.length; tileIndex++) {
       const tile = nextRow[tileIndex]!;
@@ -87,7 +156,7 @@ function markMovableTiles(grid: Grid): GridWithMovables {
     }
   }
 
-  return tiltedGrid.map((row, rowIndex) => {
+  return gridCopy.map((row, rowIndex) => {
     return row.map((cell, colIndex) => {
       const isMovable = !!movables.find(([y, x]) => y === rowIndex && x === colIndex);
       return {
@@ -137,4 +206,4 @@ const example = [
   '#OO..#....',
 ];
 
-console.log(part1(example));
+console.log(part2(example));
