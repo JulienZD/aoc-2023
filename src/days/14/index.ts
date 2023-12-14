@@ -17,11 +17,7 @@ export const part1: Solver = (input) => {
 export const part2: Solver = (input) => {
   const tiltedGrid = tiltGrid2(input.map((row) => row.split('')) as Grid, 1_000_000_000);
 
-  return tiltedGrid.reduce((total, row, rowIndex) => {
-    const load = tiltedGrid.length - rowIndex;
-
-    return total + row.reduce((rowTotal, tile) => rowTotal + (tile === Tile.ROUNDED_ROCK ? load : 0), 0);
-  }, 0);
+  return calculateLoad(tiltedGrid);
 };
 
 function tiltGrid(_grid: Grid): Grid {
@@ -58,118 +54,75 @@ function calculateLoad(grid: Grid): number {
 const DIRECTIONS = ['N', 'W', 'S', 'E'] as const;
 type Direction = (typeof DIRECTIONS)[number];
 
-function tiltGrid2(_grid: Grid, maxCycles = 1): Grid {
+function tiltGrid2(_grid: Grid, maxCycles = 1) {
   let grid = _grid;
-
   const cache = new Map<string, number>();
 
-  for (let cycle = 1; cycle <= maxCycles; cycle++) {
-    // if (cycle % 100 === 0) {
-    console.log(cycle);
-    // }
 
-    if (cycle === 12) {
-      break;
-    }
+  for (let i = 1; i < maxCycles; i++) {
+    grid = doCycle(grid);
+    const map = JSON.stringify(grid);
 
-    const gridKey = JSON.stringify(grid);
-
-    if (cache.has(gridKey)) {
-      console.log('dupe at1', cycle);
-      continue;
-    }
-
-    let gridToProcess = grid;
-
-    for (const direction of DIRECTIONS) {
-      logGrid(gridToProcess);
-
-      if (cache.has(JSON.stringify(gridToProcess))) {
-        console.log('dupe at 2', cycle, direction);
-        continue;
+    if (cache.has(map)) {
+      if (cache.get(map) === 2) {
+        break;
       }
-
-      let hasMoved = true;
-
-      while (hasMoved) {
-        let didMove = false;
-
-        const withMovables = markMovableTiles(gridToProcess);
-
-        const { tiltedGrid, movements } = applyMovements(withMovables);
-
-        gridToProcess = tiltedGrid;
-
-        if (!didMove) {
-          didMove = movements > 0;
-        }
-
-        hasMoved = didMove;
-      }
-
-      cache.set(JSON.stringify(gridToProcess), calculateLoad(gridToProcess));
-
-      gridToProcess = rotateGrid(grid);
+      cache.set(map, 2);
+    } else {
+      cache.set(map, 1);
     }
-
-    grid = gridToProcess;
   }
 
-  return grid;
+  const cycleMaps = [];
+
+  for (const [map, count] of cache) {
+    if (count === 2) {
+      cycleMaps.push(map);
+    }
+  }
+
+  const offset = cache.size - cycleMaps.length;
+
+  const index = (maxCycles - offset) % cycleMaps.length;
+
+  return JSON.parse(cycleMaps[index - 1]!);
 }
 
-function cycle(_grid: Grid): Grid {
-  let grid = _grid;
-  for (let i = 0; i < 4; i++) {
+function doCycle(grid: Grid, index = 0): Grid {
+  if (index) {
     grid = rotateGrid(grid);
-    let hasMoved = true;
+  }
 
-    while (hasMoved) {
-      let didMove = false;
+  if (index === 4) {
+    return grid;
+  }
 
-      const withMovables = markMovableTiles(grid);
+  return doCycle(slide(grid), index + 1);
+}
 
-      const { tiltedGrid, movements } = applyMovements(withMovables);
+function slide(grid: Grid): Grid {
+  let hasMoved = true;
+  while (hasMoved) {
+    let didMove = false;
 
-      grid = tiltedGrid;
+    const withMovables = markMovableTiles(grid);
 
-      if (!didMove) {
-        didMove = movements > 0;
-      }
+    const { tiltedGrid, movements } = applyMovements(withMovables);
 
-      hasMoved = didMove;
+    grid = tiltedGrid;
+
+    if (!didMove) {
+      didMove = movements > 0;
     }
+
+    hasMoved = didMove;
   }
 
   return grid;
 }
 
 function rotateGrid(grid: Grid): Grid {
-  // return grid[0]!.map((_val, index) => grid.map((row) => row[index]!).reverse());
-  return grid[0]!.map((_val, index) => grid.map((row) => row[row.length - 1 - index]!));
-  // switch (direction) {
-  //   case 'N':
-  //     return grid.map((row) => row.slice());
-  //   case 'S':
-  //     return grid.map((row) => row.slice().reverse()).reverse();
-  //   case 'E':
-
-  //   case 'W':
-  //     return grid[0]!.map((_val, index) => grid.map((row) => row[row.length - 1 - index]!));
-  // }
-}
-
-function oppositeDirection(direction: Direction): Direction {
-  switch (direction) {
-    case 'N':
-      return 'S';
-    case 'S':
-      return 'N';
-    case 'W':
-      return 'E';
-    case 'E':
-      return 'W';
-  }
+  return grid[0].map((val, index) => grid.map((row) => row[index]).reverse());
 }
 
 function logGrid(grid: Grid) {
