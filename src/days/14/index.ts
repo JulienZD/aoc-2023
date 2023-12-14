@@ -51,44 +51,35 @@ function calculateLoad(grid: Grid): number {
   }, 0);
 }
 
-const DIRECTIONS = ['N', 'W', 'S', 'E'] as const;
-type Direction = (typeof DIRECTIONS)[number];
-
 function tiltGrid2(_grid: Grid, maxCycles = 1) {
   let grid = _grid;
-  const cache = new Map<string, number>();
+  const cache = new Set<string>();
 
-
-  for (let i = 1; i < maxCycles; i++) {
-    grid = doCycle(grid);
+  let iterations = 0;
+  while (true) {
+    iterations++;
+    grid = cycle(grid);
     const map = JSON.stringify(grid);
 
     if (cache.has(map)) {
-      if (cache.get(map) === 2) {
-        break;
-      }
-      cache.set(map, 2);
-    } else {
-      cache.set(map, 1);
+      break;
     }
+
+    cache.add(map);
   }
 
-  const cycleMaps = [];
+  // Thanks https://old.reddit.com/r/adventofcode/comments/18i0xtn/2023_day_14_solutions/kdaivew/
+  // I couldn't figure out how to properly get this, my brain hurts after work + this :')
+  const states = Array.from(cache);
 
-  for (const [map, count] of cache) {
-    if (count === 2) {
-      cycleMaps.push(map);
-    }
-  }
+  const offset = states.indexOf(JSON.stringify(grid)!) + 1;
 
-  const offset = cache.size - cycleMaps.length;
+  const index = ((maxCycles - offset) % (iterations - offset)) + offset - 1;
 
-  const index = (maxCycles - offset) % cycleMaps.length;
-
-  return JSON.parse(cycleMaps[index - 1]!);
+  return JSON.parse(states[index]!);
 }
 
-function doCycle(grid: Grid, index = 0): Grid {
+function cycle(grid: Grid, index = 0): Grid {
   if (index) {
     grid = rotateGrid(grid);
   }
@@ -97,7 +88,7 @@ function doCycle(grid: Grid, index = 0): Grid {
     return grid;
   }
 
-  return doCycle(slide(grid), index + 1);
+  return cycle(slide(grid), index + 1);
 }
 
 function slide(grid: Grid): Grid {
@@ -122,13 +113,7 @@ function slide(grid: Grid): Grid {
 }
 
 function rotateGrid(grid: Grid): Grid {
-  return grid[0].map((val, index) => grid.map((row) => row[index]).reverse());
-}
-
-function logGrid(grid: Grid) {
-  console.log('---  ---');
-  console.log(grid.map((row) => row.join('')).join('\n'));
-  console.log('\n');
+  return grid[0]!.map((val, index) => grid.map((row) => row[index]).reverse());
 }
 
 type GridWithMovables = ReadonlyArray<ReadonlyArray<{ tile: Tile; movable: boolean }>>;
